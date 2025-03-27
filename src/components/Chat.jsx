@@ -1,5 +1,7 @@
 import React, {useEffect} from 'react';
 import BasicScrollToBottom from "react-scroll-to-bottom";
+import {format} from "date-fns";
+import {es} from "date-fns/locale";
 
 const Chat = ({socket, userName, room}) => {
 
@@ -9,14 +11,14 @@ const Chat = ({socket, userName, room}) => {
     const sendMessage = async () => {
         if (userName && currentMessage) {
             const info = {
-                messages: currentMessage,
+                message: currentMessage,
                 room: room,
                 author: userName,
-                time: new Date(Date.now()).getHours() + ":" + (new Date()).getMinutes(),
+                created_at: new Date,
             }
 
             await socket.emit('send_message', info);
-            setMessages((list) => [...list, info]);
+            //setMessages((list) => [...list, info]);
             setCurrentMessage('')
         }
     }
@@ -26,14 +28,22 @@ const Chat = ({socket, userName, room}) => {
         console.log(data);
     }
 
+    const handleLoadMessages = (data) => {
+        setMessages(prev => Array.isArray(data) ? [...data] : [...prev, data]);
+        console.log(data);
+    }
+
     useEffect(() => {
         socket.on('receive_message', messageHandle);
-        return () => socket.off('receive_message', messageHandle);
+        socket.on('load_message', handleLoadMessages);
+        return () => {
+            socket.off('receive_message', messageHandle)
+        };
     }, [socket])
 
     return (
         <div className="flex w-full justify-center p-4">
-            <div className="bg-gray-200 flex flex-col p-6 sm:w-full md:w-2/4 lg:w-2/5 space-y-6 rounded-lg shadow-lg">
+            <div className="bg-gray-100 flex flex-col p-6 sm:w-full md:w-2/4 lg:w-2/5 space-y-6 rounded-lg shadow-lg">
                 <section className="chat-header flex flex-col items-center">
                     <p className="text-3xl font-semibold">Chat</p>
                     <p className="font-thin">room : {room}</p>
@@ -41,7 +51,7 @@ const Chat = ({socket, userName, room}) => {
                 </section>
                 <BasicScrollToBottom>
                     <section className="flex flex-col space-y-3 max-h-[300px] p-6">
-                        {
+                        { messages.length >0 ?
                             messages.map((item, index) => {
                                 if (room === item.room) {
                                     return (
@@ -50,9 +60,11 @@ const Chat = ({socket, userName, room}) => {
                                             <div
                                                 className={`${userName === item.author ? 'bg-blue-400' : 'bg-white'} p-3 rounded-md md:w-2/3 sm:w-full w-full shadow-md`}>
                                                 <h1 className="font-semibold">{userName === item.author ? 'you' : item.author}</h1>
-                                                <div className="flex flex-row p-1 justify-between">
-                                                    <h1 className="break-words max-w-[70%]">{item.messages}</h1>
-                                                    <h1 className="flex items-end">{item.time}</h1>
+                                                <div className="flex flex-col p-1 justify-between">
+                                                    <h1 className="break-words max-w-[70%]">{item.message}</h1>
+                                                    <h1 className="flex justify-end text-sm font-thin">
+                                                        {format(new Date(item.created_at), 'dd MMM, HH:mm',{locale: es})}
+                                                    </h1>
                                                 </div>
                                             </div>
                                         </div>
@@ -60,7 +72,10 @@ const Chat = ({socket, userName, room}) => {
                                     )
                                 }
 
-                            })
+                            }):
+                            <div className="flex justify-center font-sans">
+                                <h1>No hay mensajes en este chat</h1>
+                            </div>
                         }
 
                     </section>
